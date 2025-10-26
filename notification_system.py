@@ -335,9 +335,20 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                         side = "LONG" if size > 0 else "SHORT"
                         size_abs = abs(size)
                         pnl_emoji = "🟢" if pnl > 0 else "🔴" if pnl < 0 else "⚪"
+                        margin_used = float(position.get("marginUsed", 0))
+                        
+                        # Calculate current price and other metrics
+                        current_price = abs(position_value / size) if size != 0 else 0
+                        roe = float(position.get("returnOnEquity", 0)) * 100
+                        funding = position.get("cumFunding", {})
+                        funding_since_open = float(funding.get("sinceOpen", 0))
+                        funding_change = float(funding.get("sinceChange", 0))
+                        funding_emoji = "💰" if funding_since_open > 0 else "💸" if funding_since_open < 0 else "⚪"
                         
                         summary += f"  {pnl_emoji} {coin} {side}: {size_abs:,.2f} @ ${entry_price:,.2f}\n"
-                        summary += f"     PnL: ${pnl:,.2f} | Value: ${position_value:,.2f} | Lev: {leverage}x\n"
-                        summary += f"     Liq Price: ${liquidation_price:,.2f}\n\n"
+                        summary += f"     Current: ${current_price:,.2f} | PnL: ${pnl:,.2f} ({roe:+.2f}%)\n"
+                        summary += f"     Value: ${position_value:,.2f} | Lev: {leverage}x | ROE: {roe:+.1f}%\n"
+                        summary += f"     Liq Price: ${liquidation_price:,.2f} | Margin: ${margin_used:,.2f}\n"
+                        summary += f"     {funding_emoji} Funding: ${funding_since_open:+,.2f} (${funding_change:+,.2f} recent)\n\n"
         
         return summary
