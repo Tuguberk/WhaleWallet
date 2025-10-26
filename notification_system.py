@@ -32,12 +32,61 @@ class NotificationSystem:
         return success
     
     def _send_to_console(self, message: str, title: str):
-        """Print notification to console"""
-        print(f"\n{'='*50}")
-        print(f"🔔 {title} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"{'='*50}")
-        print(message)
-        print(f"{'='*50}\n")
+        """Print notification to console with enhanced formatting"""
+        # Add color codes for better visibility
+        colors = {
+            'red': '\033[91m',
+            'green': '\033[92m',
+            'yellow': '\033[93m',
+            'blue': '\033[94m',
+            'magenta': '\033[95m',
+            'cyan': '\033[96m',
+            'white': '\033[97m',
+            'bold': '\033[1m',
+            'end': '\033[0m'
+        }
+        
+        print(f"\n{colors['cyan']}{'='*60}{colors['end']}")
+        print(f"{colors['bold']}{colors['yellow']}🔔 {title} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{colors['end']}")
+        print(f"{colors['cyan']}{'='*60}{colors['end']}")
+        
+        # Format message with colors for better readability
+        formatted_lines = []
+        for line in message.split('\n'):
+            if line.strip():
+                # Color coding based on content
+                if '📊' in line or 'POSITION SUMMARY' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['blue']}{line}{colors['end']}")
+                elif '📈' in line or 'POSITION BREAKDOWN' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['cyan']}{line}{colors['end']}")
+                elif '🔍' in line or 'ACTIVE POSITIONS' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['magenta']}{line}{colors['end']}")
+                elif '🟢' in line:
+                    formatted_lines.append(f"{colors['green']}{line}{colors['end']}")
+                elif '🔴' in line:
+                    formatted_lines.append(f"{colors['red']}{line}{colors['end']}")
+                elif '💰' in line or 'DEPOSIT' in line or 'WITHDRAWAL' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['yellow']}{line}{colors['end']}")
+                elif '🚀' in line or 'POSITION OPENED' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['green']}{line}{colors['end']}")
+                elif '✅' in line or 'POSITION CLOSED' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['blue']}{line}{colors['end']}")
+                elif '🔄' in line or 'POSITION CHANGED' in line:
+                    formatted_lines.append(f"{colors['bold']}{colors['yellow']}{line}{colors['end']}")
+                elif '$' in line and ('PnL:' in line or 'Value:' in line):
+                    # Highlight monetary values
+                    formatted_lines.append(f"{colors['green']}{line}{colors['end']}")
+                elif line.startswith('•'):
+                    formatted_lines.append(f"  {colors['white']}{line}{colors['end']}")
+                elif line.startswith('   '):
+                    formatted_lines.append(f"    {colors['cyan']}{line}{colors['end']}")
+                else:
+                    formatted_lines.append(line)
+            else:
+                formatted_lines.append(line)
+        
+        print('\n'.join(formatted_lines))
+        print(f"{colors['cyan']}{'='*60}{colors['end']}\n")
     
     def _send_email(self, message: str, title: str) -> bool:
         """Send email notification"""
@@ -215,8 +264,8 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         return summary
     
-    def format_hyperliquid_summary(self, positions: Dict) -> str:
-        """Format Hyperliquid position summary"""
+    def format_hyperliquid_summary(self, positions: Dict, stats: Dict = None) -> str:
+        """Format Hyperliquid position summary with detailed statistics"""
         if not positions or "marginSummary" not in positions:
             return "Position data unavailable"
         
@@ -229,7 +278,35 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         # Get individual positions
         asset_positions = positions.get("assetPositions", [])
         
-        summary = f"""
+        # If stats provided, use detailed statistics
+        if stats:
+            total_pos_value = stats.get("total_position_value", total_notion)
+            long_value = stats.get("long_value", 0)
+            short_value = stats.get("short_value", 0)
+            win_rate = stats.get("win_rate", 0)
+            leverage = stats.get("leverage", 0)
+            long_pct = stats.get("long_percentage", 0)
+            short_pct = stats.get("short_percentage", 0)
+            
+            summary = f"""
+📊 HYPERLIQUID POSITION SUMMARY
+Wallet: 0xc2a3...e5f2
+Account Value: ${float(account_value):,.2f}
+Total Position Value: ${float(total_pos_value):,.2f}
+Unrealized PnL: ${float(unrealized_pnl):,.2f}
+Margin Usage: {float(margin_usage)*100:.2f}%
+Open Positions: {stats.get('position_count', len(asset_positions))}
+Win Rate: {win_rate:.1f}%
+Leverage: {leverage:.2f}x
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📈 POSITION BREAKDOWN:
+• Long: ${long_value:,.2f} ({long_pct:.1f}%)
+• Short: ${short_value:,.2f} ({short_pct:.1f}%)
+            """
+        else:
+            # Fallback to original format if no stats provided
+            summary = f"""
 📊 HYPERLIQUID POSITION SUMMARY
 Wallet: 0xc2a3...e5f2
 Account Value: ${float(account_value):,.2f}
@@ -238,20 +315,29 @@ Unrealized PnL: ${float(unrealized_pnl):,.2f}
 Margin Usage: {float(margin_usage)*100:.2f}%
 Open Positions: {len(asset_positions)}
 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        """
+            """
         
         # Add individual positions if available
         if asset_positions:
-            summary += "\n📈 POSITIONS:\n"
-            for pos in asset_positions[:5]:  # Show top 5 positions
-                if "position" in pos and pos["position"]:
-                    coin = pos["position"].get("coin", "Unknown")
-                    size = pos["position"].get("size", 0)
-                    side = pos["position"].get("side", "Unknown")
-                    entry_price = pos["position"].get("entryPx", 0)
-                    current_price = pos["position"].get("markPx", 0)
+            summary += "\n🔍 ACTIVE POSITIONS:\n"
+            for pos_data in asset_positions[:5]:  # Show top 5 positions
+                if "position" in pos_data and pos_data["position"]:
+                    position = pos_data["position"]
+                    coin = position.get("coin", "Unknown")
+                    size = float(position.get("szi", 0))
+                    entry_price = float(position.get("entryPx", 0))
+                    position_value = float(position.get("positionValue", 0))
+                    pnl = float(position.get("unrealizedPnl", 0))
+                    leverage = position.get("leverage", {}).get("value", 0)
+                    liquidation_price = float(position.get("liquidationPx", 0))
                     
-                    if float(size) != 0:
-                        summary += f"  • {coin}: {side} {size} @ ${entry_price} (Current: ${current_price})\n"
+                    if size != 0:  # Only show active positions
+                        side = "LONG" if size > 0 else "SHORT"
+                        size_abs = abs(size)
+                        pnl_emoji = "🟢" if pnl > 0 else "🔴" if pnl < 0 else "⚪"
+                        
+                        summary += f"  {pnl_emoji} {coin} {side}: {size_abs:,.2f} @ ${entry_price:,.2f}\n"
+                        summary += f"     PnL: ${pnl:,.2f} | Value: ${position_value:,.2f} | Lev: {leverage}x\n"
+                        summary += f"     Liq Price: ${liquidation_price:,.2f}\n\n"
         
         return summary

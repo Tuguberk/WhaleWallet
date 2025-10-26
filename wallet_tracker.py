@@ -212,11 +212,75 @@ class WalletTracker:
         recent_txs = self.get_normal_transactions(5)
         token_txs = self.get_token_transfers(5)
         
+        # Calculate additional statistics
+        stats = self.calculate_position_stats(positions) if positions else {}
+        
         return {
             "wallet_address": self.wallet_address,
             "eth_balance": balance,
             "hyperliquid_positions": positions,
+            "position_stats": stats,
             "recent_transactions": recent_txs,
             "token_transfers": token_txs,
             "timestamp": datetime.now().isoformat()
         }
+    
+    def calculate_position_stats(self, positions: Dict) -> Dict:
+        """Calculate detailed position statistics"""
+        try:
+            margin_summary = positions.get("marginSummary", {})
+            asset_positions = positions.get("assetPositions", [])
+            
+            account_value = float(margin_summary.get("accountValue", 0))
+            total_ntl_pos = float(margin_summary.get("totalNtlPos", 0))
+            margin_used = float(margin_summary.get("totalMarginUsed", 0))
+            
+            # Calculate PnL
+            total_unrealized_pnl = 0
+            long_value = 0
+            short_value = 0
+            position_count = 0
+            winning_positions = 0
+            
+            for pos_data in asset_positions:
+                if "position" in pos_data and pos_data["position"]:
+                    position = pos_data["position"]
+                    pnl = float(position.get("unrealizedPnl", 0))
+                    position_value = float(position.get("positionValue", 0))
+                    size = float(position.get("szi", 0))
+                    
+                    if size != 0:  # Active position
+                        position_count += 1
+                        total_unrealized_pnl += pnl
+                        
+                        if size > 0:  # Long position
+                            long_value += position_value
+                        else:  # Short position
+                            short_value += abs(position_value)
+                        
+                        if pnl > 0:
+                            winning_positions += 1
+            
+            # Calculate win rate
+            win_rate = (winning_positions / position_count * 100) if position_count > 0 else 0
+            
+            # Calculate ROE (Return on Equity)
+            roe = (total_unrealized_pnl / account_value * 100) if account_value > 0 else 0
+            
+            return {
+                "account_value": account_value,
+                "total_position_value": total_ntl_pos,
+                "long_value": long_value,
+                "short_value": short_value,
+                "total_unrealized_pnl": total_unrealized_pnl,
+                "position_count": position_count,
+                "winning_positions": winning_positions,
+                "win_rate": win_rate,
+                "roe_percentage": roe,
+                "leverage": total_ntl_pos / account_value if account_value > 0 else 0,
+                "long_percentage": (long_value / total_ntl_pos * 100) if total_ntl_pos > 0 else 0,
+                "short_percentage": (short_value / total_ntl_pos * 100) if total_ntl_pos > 0 else 0
+            }
+        except Exception as e:
+            print(f"Error calculating position stats: {e}")
+            return {}

@@ -102,10 +102,29 @@ Monitoring active...
             
             self.notifier.send_notification(message, "TRACKER STARTED")
             
+            # Log the tracker start
+            save_transaction_log({
+                "type": "tracker_started",
+                "wallet_address": summary['wallet_address'],
+                "eth_balance": eth_balance,
+                "start_time": datetime.now().isoformat()
+            })
+            
             # Send Hyperliquid summary if available
             if summary['hyperliquid_positions']:
-                hl_summary = self.notifier.format_hyperliquid_summary(summary['hyperliquid_positions'])
+                hl_summary = self.notifier.format_hyperliquid_summary(
+                    summary['hyperliquid_positions'], 
+                    summary.get('position_stats', {})
+                )
                 self.notifier.send_notification(hl_summary, "INITIAL POSITIONS")
+                
+                # Log initial positions with detailed stats
+                save_transaction_log({
+                    "type": "initial_positions",
+                    "hyperliquid_summary": summary['hyperliquid_positions'],
+                    "position_stats": summary.get('position_stats', {}),
+                    "timestamp": datetime.now().isoformat()
+                })
                 
         except Exception as e:
             print(f"❌ Error sending initial summary: {e}")
