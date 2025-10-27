@@ -70,34 +70,33 @@ Bot token'ı girip ardından botunuza bir mesaj gönderin.
 cp config.example.py config.py
 ```
 
-2. `config.py` dosyasını düzenleyin:
-```python
+2. `.env.example` dosyasını kopyalayın:
+```bash
+cp .env.example .env
+```
+
+`.env` dosyasına aşağıdaki bilgileri ekleyin:
+```bash
 # Takip edilecek cüzdan adresi
-WALLET_ADDRESS = "0x..."
+WALLET_ADDRESS=0xSIZIN_CUZDAN_ADRESINIZ
 
 # Etherscan API anahtarı (https://etherscan.io/apis adresinden alın)
-ETHERSCAN_API_KEY = "YourAPIKey..."
+ETHERSCAN_API_KEY=SIZIN_ETHERSCAN_API_KEY
 
 # Telegram ayarları
-NOTIFICATION_SETTINGS = {
-    "telegram": {
-        "enabled": True,  # Telegram bildirimlerini aktif et
-        "bot_token": "BotFather'dan aldığınız bot token",
-        "chat_id": "get_chat_id.py ile öğrendiğiniz chat ID"
-    },
-    "email": {
-        "enabled": False,  # Gmail bildirimlerini aktif etmek için True yapın
-        "smtp_server": "smtp.gmail.com",
-        "smtp_port": 587,
-        "sender_email": "gmail_adresiniz@gmail.com",
-        "sender_password": "uygulama_sifreniz",  # Google App Password
-        "recipient_email": "bildirim_gidecek_adres@email.com"
-    },
-    "console": {
-        "enabled": True  # Konsol bildirimleri
-    }
-}
+TELEGRAM_BOT_TOKEN=BOTFATHERDAN_ALDIGINIZ_BOT_TOKEN
+TELEGRAM_CHAT_ID=get_chat_id_ile_ogrendiginiz_chat_id
+
+# Gmail bildirimleri (isteğe bağlı)
+EMAIL_SENDER=gmail_adresiniz@gmail.com
+EMAIL_PASSWORD=16_haneli_google_app_password
+EMAIL_RECIPIENT=bildirim_alacak_adres@email.com
 ```
+
+**Önemli**:
+- `config.py` dosyasını doğrudan düzenlemenize gerek yoktur. Bu dosya `.env` dosyasından bilgileri otomatik olarak okur.
+- `.env` dosyası .gitignore'da tanımlıdır, hassas bilgileriniz depoya eklenmez.
+- Email ayarları isteğe bağlıdır, sadece Gmail bildirimleri istiyorsanız doldurun.
 
 ### 4. Güvenli Konfigürasyon (İsteğe Bağlı)
 
@@ -222,17 +221,17 @@ NOTIFICATION_SETTINGS = {
    - Uygulama adı olarak "Balina2Droid" yazın
    - Oluşturulan 16 haneli şifreyi kopyalayın
 
-2. **Konfigürasyon Ayarları**:
-   ```python
-   "email": {
-       "enabled": True,
-       "smtp_server": "smtp.gmail.com",
-       "smtp_port": 587,
-       "sender_email": "gmail_adresiniz@gmail.com",
-       "sender_password": "16_haneli_app_password",  # Normal Gmail şifreniz değil!
-       "recipient_email": "bildirim_alacak_adres@email.com"
-   }
+2. **Gmail Ayarlarını Etkinleştirme**:
+   `.env` dosyasına Gmail bilgilerini ekleyin ve `config.py` dosyasında email ayarını aktif edin:
+
+   `.env` dosyasına ekleyin:
+   ```bash
+   EMAIL_SENDER=gmail_adresiniz@gmail.com
+   EMAIL_PASSWORD=16_haneli_google_app_password
+   EMAIL_RECIPIENT=bildirim_alacak_adres@email.com
    ```
+
+   **Önemli**: `config.py` dosyasını düzenlemenize gerek yoktur. Email ayarları `.env` dosyasından otomatik olarak okunur ve gerekli bilgiler varsa otomatik olarak aktif olur.
 
 ## 📞 Sorun Giderme
 

@@ -19,15 +19,20 @@ HYPERLIQUID_API_URL = "https://api.hyperliquid.xyz/info"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "YOUR_CHAT_ID")
 
+# Email configuration
+EMAIL_SENDER = os.getenv("EMAIL_SENDER", "your_email@gmail.com")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "your_password")
+EMAIL_RECIPIENT = os.getenv("EMAIL_RECIPIENT", "recipient@example.com")
+
 # Notification settings
 NOTIFICATION_SETTINGS = {
     "email": {
-        "enabled": False,
+        "enabled": True if EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECIPIENT else False,
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
-        "sender_email": "your_email@gmail.com",
-        "sender_password": "your_password",
-        "recipient_email": "recipient@example.com"
+        "sender_email": EMAIL_SENDER,
+        "sender_password": EMAIL_PASSWORD,
+        "recipient_email": EMAIL_RECIPIENT
     },
     "telegram": {
         "enabled": True if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID else False,
