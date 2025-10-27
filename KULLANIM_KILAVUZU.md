@@ -206,11 +206,16 @@ POSITION_CHANGE_THRESHOLD = 1000  # $1000 üzeri değişiklikler için bildirim
 ### Bildirim Kanalları
 ```python
 NOTIFICATION_SETTINGS = {
-    "telegram": {"enabled": True},
-    "email": {"enabled": False},  # E-posta bildirimleri (Gmail desteği mevcut)
-    "console": {"enabled": True}  # Konsol çıktıları
+    "telegram": {"enabled": True},  # Telegram bildirimleri
+    "email": {"enabled": False},   # E-posta bildirimleri (isteğe bağlı)
+    "console": {"enabled": True}   # Konsol çıktıları
 }
 ```
+
+**Varsayılan Ayarlar:**
+- Telegram: Etkin (bot token ve chat ID varsa)
+- Email: Devre dışı (manuel olarak aktif edilmesi gerekir)
+- Console: Etkin (her zaman)
 
 ### Gmail Bildirimleri için Kurulum (Opsiyonel)
 

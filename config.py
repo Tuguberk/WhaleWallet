@@ -27,7 +27,7 @@ EMAIL_RECIPIENT = os.getenv("EMAIL_RECIPIENT", "recipient@example.com")
 # Notification settings
 NOTIFICATION_SETTINGS = {
     "email": {
-        "enabled": True if EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECIPIENT else False,
+        "enabled": False,  # Email bildirimleri varsayılan olarak kapalı
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
         "sender_email": EMAIL_SENDER,
