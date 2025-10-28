@@ -1,0 +1,38 @@
+services:
+  whalewallet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whalewallet-tracker
+    restart: unless-stopped
+    environment:
+      # Wallet Configuration
+      - WALLET_ADDRESS=${WALLET_ADDRESS}
+      
+      # API Keys
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      
+      # Telegram Configuration
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      
+      # Optional: Python environment
+      - PYTHONUNBUFFERED=1
+      - TZ=Europe/Istanbul
+    
+    volumes:
+      # Mount logs directory to persist logs
+      - ./logs:/app/logs
+      # Optional: Mount transactions.log to persist transaction history
+      - ./transactions.log:/app/transactions.log
+    
+    # Resource limits (optional but recommended)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+  

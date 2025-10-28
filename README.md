@@ -15,6 +15,28 @@ A Python application that monitors Ethereum wallet and Hyperliquid positions for
 
 ## Installation
 
+### Option 1: Docker (Recommended)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Tuguberk/WhaleWallet.git
+cd WhaleWallet
+
+# 2. Configure environment variables
+cp .env.example .env
+nano .env  # Edit with your values
+
+# 3. Start with Docker Compose
+docker-compose up -d
+
+# 4. View logs
+docker-compose logs -f
+```
+
+**That's it!** 🎉 See [DOCKER_GUIDE.md](./DOCKER_GUIDE.md) for detailed documentation.
+
+### Option 2: Manual Installation
+
 1. Clone the repository
 2. Create virtual environment:
    ```bash
