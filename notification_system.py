@@ -2,13 +2,25 @@ import requests
 from datetime import datetime
 from typing import Dict, Optional, List
 import time
+from telegram_bot import TelegramBotManager
 
 class NotificationSystem:
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, wallets: Dict = None):
         self.telegram_config = config.get("telegram", {})
         self.console_enabled = config.get("console", {}).get("enabled", True)
         self._last_telegram_call = 0
         self._min_telegram_interval = 0.034  # ~30 messages per second limit
+        
+        # Initialize bot manager for multi-user support
+        self.bot_manager = None
+        if self.telegram_config.get("enabled", False):
+            bot_token = self.telegram_config.get("bot_token")
+            if bot_token:
+                self.bot_manager = TelegramBotManager(bot_token)
+                # Set wallet information for /wallets command
+                if wallets:
+                    self.bot_manager.wallets = wallets
+                self.bot_manager.start_polling()
     
     def send_notification(self, message: str, title: str = "Wallet Update") -> bool:
         """Send notification through all enabled channels"""
@@ -83,74 +95,69 @@ class NotificationSystem:
         print(f"{colors['cyan']}{'='*60}{colors['end']}\n")
     
     def _send_telegram(self, message: str) -> bool:
-        """Send Telegram notification with rate limiting and error handling"""
+        """Send Telegram notification to all subscribers with rate limiting and error handling"""
+        if not self.bot_manager:
+            print("⚠️  Bot manager not initialized")
+            return False
+        
         # Rate limiting
         elapsed = time.time() - self._last_telegram_call
         if elapsed < self._min_telegram_interval:
             time.sleep(self._min_telegram_interval - elapsed)
         
         try:
-            url = f"https://api.telegram.org/bot{self.telegram_config['bot_token']}/sendMessage"
-            payload = {
-                "chat_id": self.telegram_config["chat_id"],
-                "text": message,
-                "parse_mode": "HTML"
-            }
-            
-            # Add timeout and SSL verification
-            response = requests.post(url, json=payload, timeout=10, verify=True)
+            # Broadcast to all subscribers
+            results = self.bot_manager.broadcast_message(message)
             self._last_telegram_call = time.time()
             
-            if response.status_code == 200:
-                print("Telegram notification sent successfully")
+            if results["success"] > 0:
+                print(f"✅ Telegram notification sent to {results['success']}/{results['total']} subscribers")
+                if results["failed"] > 0:
+                    print(f"⚠️  Failed to send to {results['failed']} subscribers")
                 return True
-            elif response.status_code == 429:
-                # Rate limit exceeded
-                print(f"Telegram rate limit exceeded. Waiting...")
-                retry_after = int(response.headers.get('Retry-After', 60))
-                time.sleep(retry_after)
-                return self._send_telegram(message)  # Retry once
             else:
-                print(f"Telegram API error ({response.status_code}): {response.text}")
+                print(f"❌ Failed to send Telegram notifications to all {results['total']} subscribers")
                 return False
-        except requests.exceptions.Timeout:
-            print("Telegram notification timeout - request took too long")
-            return False
-        except requests.exceptions.ConnectionError:
-            print("Telegram connection error - check your internet connection")
-            return False
-        except requests.exceptions.RequestException as e:
-            print(f"Telegram request error: {type(e).__name__}")
-            return False
+                
         except Exception as e:
-            print(f"Unexpected error sending Telegram notification: {type(e).__name__}")
+            print(f"❌ Unexpected error sending Telegram notification: {type(e).__name__}: {e}")
             return False
     
-    def format_balance_change(self, old_balance: float, new_balance: float, change: float) -> str:
+    def format_balance_change(self, old_balance: float, new_balance: float, change: float, wallet_name: str = "Main Wallet") -> str:
         """Format balance change notification"""
         direction = "📈" if change > 0 else "📉"
         return f"""
-{direction} BALANCE CHANGE DETECTED
-Wallet: 0xc2a3...e5f2
-Previous Balance: {old_balance:.4f} ETH
-New Balance: {new_balance:.4f} ETH
-Change: {change:+.4f} ETH ({(change/old_balance*100):+.2f}%)
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+{direction} <b>BALANCE CHANGE</b>
+
+💼 <b>Wallet:</b> {wallet_name}
+📊 <b>Previous:</b> {old_balance:.4f} ETH
+📊 <b>New:</b> {new_balance:.4f} ETH
+💸 <b>Change:</b> {change:+.4f} ETH ({(change/old_balance*100):+.2f}%)
+🕐 <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
     
-    def format_position_change(self, positions: Dict, change_type: str = "change") -> str:
+    def format_position_change(self, positions: Dict, change_type: str = "change", wallet_name: str = "Main Wallet") -> str:
         """Format position change notification"""
         if not positions or "marginSummary" not in positions:
-            return "Position data unavailable"
+            return f"📊 Position data unavailable for {wallet_name}"
         
         margin_summary = positions.get("marginSummary", {})
-        account_value = margin_summary.get("accountValue", 0)
-        total_notion = margin_summary.get("totalNotion", 0)
-        unrealized_pnl = margin_summary.get("unrealizedPnl", 0)
-        margin_usage = margin_summary.get("marginUsage", 0)
+        account_value = float(margin_summary.get("accountValue", 0))
+        total_ntl_pos = float(margin_summary.get("totalNtlPos", 0))
+        withdrawable = float(margin_summary.get("withdrawable", 0))
         
-        # Get individual positions
+        # Calculate total unrealized PnL from all positions
+        total_unrealized_pnl = 0
         asset_positions = positions.get("assetPositions", [])
+        for pos_data in asset_positions:
+            if pos_data.get('position'):
+                pos = pos_data['position']
+                if pos.get('szi') and float(pos['szi']) != 0:
+                    total_unrealized_pnl += float(pos.get('unrealizedPnl', 0))
+        
+        # Calculate margin usage
+        margin_used = account_value - withdrawable if account_value > 0 else 0
+        margin_usage = (margin_used / account_value) if account_value > 0 else 0
         
         # Choose appropriate emoji and title based on change type
         if change_type == "position_opened":
@@ -164,13 +171,14 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             title = "POSITION CHANGED"
         
         summary = f"""
-{emoji} {title}
-Wallet: 0xc2a3...e5f2
-Account Value: ${float(account_value):,.2f}
-Total Position Value: ${float(total_notion):,.2f}
-Unrealized PnL: ${float(unrealized_pnl):,.2f}
-Margin Usage: {float(margin_usage)*100:.2f}%
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+{emoji} <b>{title}</b>
+
+💼 <b>Wallet:</b> {wallet_name}
+📊 <b>Account Value:</b> ${account_value:,.2f}
+💵 <b>Position Value:</b> ${abs(total_ntl_pos):,.2f}
+💰 <b>Unrealized PnL:</b> ${total_unrealized_pnl:,.2f}
+📈 <b>Margin Usage:</b> {margin_usage*100:.2f}%
+🕐 <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
         
         # Add individual positions if available
@@ -219,14 +227,14 @@ Hash: {tx.get('hash', 'N/A')}
 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
     
-    def format_deposit_withdrawal(self, transactions: List[Dict]) -> str:
+    def format_deposit_withdrawal(self, transactions: List[Dict], wallet_name: str = "Main Wallet") -> str:
         """Format deposit/withdrawal notifications"""
         if not transactions:
             return "No transactions to display"
         
-        summary = "💰 DEPOSIT/WITHDRAWAL DETECTED\n"
-        summary += f"Wallet: 0xc2a3...e5f2\n"
-        summary += f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        summary = f"💰 <b>DEPOSIT/WITHDRAWAL DETECTED</b>\n\n"
+        summary += f"💼 <b>Wallet:</b> {wallet_name}\n"
+        summary += f"🕐 <b>Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         for tx in transactions:
             asset = tx.get("asset", "Unknown")
@@ -246,16 +254,16 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 tx_type = "WITHDRAWAL"
                 emoji = "📤"
                 recipient = tx.get("to", "Unknown")[:10] + "..." if tx.get("to") else "Unknown"
-                summary += f"{emoji} {tx_type}: {value_str}\n"
-                summary += f"   To: {recipient}\n"
+                summary += f"{emoji} <b>{tx_type}:</b> {value_str}\n"
+                summary += f"   📍 <b>To:</b> <code>{recipient}</code>\n"
             elif tx.get("to", "").lower() == wallet_address:
                 tx_type = "DEPOSIT"
                 emoji = "📥"
                 sender = tx.get("from", "Unknown")[:10] + "..." if tx.get("from") else "Unknown"
-                summary += f"{emoji} {tx_type}: {value_str}\n"
-                summary += f"   From: {sender}\n"
+                summary += f"{emoji} <b>{tx_type}:</b> {value_str}\n"
+                summary += f"   📍 <b>From:</b> <code>{sender}</code>\n"
             
-            summary += f"   Hash: {tx.get('hash', 'Unknown')[:20]}...\n\n"
+            summary += f"   🔗 <b>Hash:</b> <code>{tx.get('hash', 'Unknown')[:20]}...</code>\n\n"
         
         return summary
     
@@ -265,17 +273,29 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             return "Position data unavailable"
         
         margin_summary = positions.get("marginSummary", {})
-        account_value = margin_summary.get("accountValue", 0)
-        total_notion = margin_summary.get("totalNotion", 0)
-        unrealized_pnl = margin_summary.get("unrealizedPnl", 0)
-        margin_usage = margin_summary.get("marginUsage", 0)
+        account_value = float(margin_summary.get("accountValue", 0))
+        total_ntl_pos = float(margin_summary.get("totalNtlPos", 0))
+        withdrawable = float(margin_summary.get("withdrawable", 0))
+        
+        # Calculate total unrealized PnL from all positions
+        total_unrealized_pnl = 0
+        asset_positions = positions.get("assetPositions", [])
+        for pos_data in asset_positions:
+            if pos_data.get('position'):
+                pos = pos_data['position']
+                if pos.get('szi') and float(pos['szi']) != 0:
+                    total_unrealized_pnl += float(pos.get('unrealizedPnl', 0))
+        
+        # Calculate margin usage
+        margin_used = account_value - withdrawable if account_value > 0 else 0
+        margin_usage = (margin_used / account_value) if account_value > 0 else 0
         
         # Get individual positions
         asset_positions = positions.get("assetPositions", [])
         
         # If stats provided, use detailed statistics
         if stats:
-            total_pos_value = stats.get("total_position_value", total_notion)
+            total_pos_value = stats.get("total_position_value", abs(total_ntl_pos))
             long_value = stats.get("long_value", 0)
             short_value = stats.get("short_value", 0)
             win_rate = stats.get("win_rate", 0)
@@ -286,10 +306,10 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             summary = f"""
 📊 HYPERLIQUID POSITION SUMMARY
 Wallet: 0xc2a3...e5f2
-Account Value: ${float(account_value):,.2f}
-Total Position Value: ${float(total_pos_value):,.2f}
-Unrealized PnL: ${float(unrealized_pnl):,.2f}
-Margin Usage: {float(margin_usage)*100:.2f}%
+Account Value: ${account_value:,.2f}
+Total Position Value: ${total_pos_value:,.2f}
+Unrealized PnL: ${total_unrealized_pnl:,.2f}
+Margin Usage: {margin_usage*100:.2f}%
 Open Positions: {stats.get('position_count', len(asset_positions))}
 Win Rate: {win_rate:.1f}%
 Leverage: {leverage:.2f}x
@@ -304,10 +324,10 @@ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             summary = f"""
 📊 HYPERLIQUID POSITION SUMMARY
 Wallet: 0xc2a3...e5f2
-Account Value: ${float(account_value):,.2f}
-Total Position Value: ${float(total_notion):,.2f}
-Unrealized PnL: ${float(unrealized_pnl):,.2f}
-Margin Usage: {float(margin_usage)*100:.2f}%
+Account Value: ${account_value:,.2f}
+Total Position Value: ${abs(total_ntl_pos):,.2f}
+Unrealized PnL: ${total_unrealized_pnl:,.2f}
+Margin Usage: {margin_usage*100:.2f}%
 Open Positions: {len(asset_positions)}
 Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             """

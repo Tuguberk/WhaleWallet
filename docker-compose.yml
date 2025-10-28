@@ -8,6 +8,7 @@ services:
     environment:
       # Wallet Configuration
       - WALLET_ADDRESS=${WALLET_ADDRESS}
+      - WALLETS=${WALLETS}
       
       # API Keys
       - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
@@ -15,6 +16,9 @@ services:
       # Telegram Configuration
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      
+      # Subscribers file location
+      - SUBSCRIBERS_FILE=/app/data/subscribers.json
       
       # Optional: Python environment
       - PYTHONUNBUFFERED=1
@@ -25,6 +29,8 @@ services:
       - ./logs:/app/logs
       # Optional: Mount transactions.log to persist transaction history
       - ./transactions.log:/app/transactions.log
+      # Use named volume for subscribers to avoid file/directory conflicts
+      - subscribers_data:/app/data
     
     # Resource limits (optional but recommended)
     deploy:
@@ -35,4 +41,8 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-  
+
+# Named volumes for persistent data
+volumes:
+  subscribers_data:
+    driver: local

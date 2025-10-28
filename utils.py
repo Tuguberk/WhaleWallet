@@ -6,7 +6,8 @@ def load_config(config_path: str = "config.py") -> dict:
     """Load configuration from file"""
     import config
     return {
-        "wallet_address": config.WALLET_ADDRESS,
+        "wallets": config.WALLETS,  # Multi-wallet support
+        "wallet_address": config.WALLET_ADDRESS,  # Legacy support
         "etherscan_api_key": config.ETHERSCAN_API_KEY,
         "check_interval": config.CHECK_INTERVAL,
         "notification_settings": config.NOTIFICATION_SETTINGS,

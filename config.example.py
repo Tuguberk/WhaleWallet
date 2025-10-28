@@ -14,7 +14,7 @@ NOTIFICATION_SETTINGS = {
     "telegram": {
         "enabled": False,
         "bot_token": "YOUR_BOT_TOKEN",
-        "chat_id": "YOUR_CHAT_ID"
+        "chat_id": ""  # Optional - bot will accept /start from any user/group
     },
     "console": {
         "enabled": True
