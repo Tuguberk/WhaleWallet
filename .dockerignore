@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Documentation
+README.md
+KULLANIM_KILAVUZU.md
+CHANGELOG.md
+SECURITY_REPORT.md
+*.png
+Screenshot*
+
+# Test files
+test_*.py
+*_test.py
+debug_*.py
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.prod.yml
+.dockerignore
+docker-start.sh
+
+# Config files with secrets (will be loaded from environment)
+# Note: config.py is included as it contains configuration logic
+# Only .env files are excluded as they contain actual secrets
+
+# Helper scripts (not needed in production)
+install.sh
+telegram_setup.py
+telegram_helper.py
+get_chat_id.py
+check_telegram.py
+security_check.py
