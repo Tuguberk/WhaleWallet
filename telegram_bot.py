@@ -28,6 +28,7 @@ class TelegramBotManager:
         self.thread = None
         self.wallets = {}  # Will be set by external code
         self.on_new_subscriber = None  # Callback function for new subscribers
+        self.on_analysis_request = None  # Callback function for analysis requests
         self.api_base_url = f"https://api.telegram.org/bot{self.bot_token}"
         
     def _load_subscribers(self) -> Set[int]:
@@ -104,24 +105,47 @@ class TelegramBotManager:
             print(f"⚠️  Error checking admin status: {e}")
             return False
     
-    def _check_permission(self, chat_id: int, user_id: int, chat_type: str, username: str = None) -> tuple[bool, str]:
+    def _check_permission(self, chat_id: int, user_id: int, chat_type: str, username: str = None, command: str = None) -> tuple[bool, str]:
         """
         Check if user has permission to use bot commands
         Returns: (has_permission: bool, error_message: str)
+        
+        Permission levels:
+        - Private chats: All commands allowed
+        - Group chats:
+          * Admin-only: /start, /stop (subscription management)
+          * Public: /analysis, /info, /status, /wallets, /help (information commands)
         """
         # Private chats: always allow
         if chat_type == 'private':
             return True, None
         
-        # Group/Supergroup/Channel: check if user is admin
+        # Define admin-only commands
+        admin_only_commands = ['/start', '/stop']
+        
+        # Check if command requires admin permission
+        requires_admin = False
+        if command:
+            for admin_cmd in admin_only_commands:
+                if command.startswith(admin_cmd):
+                    requires_admin = True
+                    break
+        
+        # If command doesn't require admin, allow for everyone in groups
+        if not requires_admin:
+            return True, None
+        
+        # For admin-only commands, check if user is admin
         is_admin = self._is_user_admin(chat_id, user_id)
         
         if not is_admin:
             user_mention = f"@{username}" if username else f"User {user_id}"
             error_msg = (
                 f"🔒 <b>Admin Permission Required</b>\n\n"
-                f"Sorry {user_mention}, only group admins can use bot commands.\n\n"
-                f"<i>This restriction helps prevent spam and unauthorized access.</i>"
+                f"Sorry {user_mention}, only group admins can use this command.\n\n"
+                f"<b>Admin Commands:</b> /start, /stop\n"
+                f"<b>Public Commands:</b> /analysis, /info, /status, /wallets, /help\n\n"
+                f"<i>Contact a group admin to manage subscriptions.</i>"
             )
             return False, error_msg
         
@@ -186,13 +210,13 @@ class TelegramBotManager:
             if not chat_id or not text:
                 return
             
-            # Check if user has permission (admin check for groups)
-            has_permission, error_msg = self._check_permission(chat_id, user_id, chat_type, username)
+            # Check if user has permission (pass command for permission level check)
+            has_permission, error_msg = self._check_permission(chat_id, user_id, chat_type, username, text)
             if not has_permission:
                 self.send_message(chat_id, error_msg)
                 # Log unauthorized attempt
                 if chat_type != 'private':
-                    print(f"🚫 Unauthorized command attempt by @{username} (ID: {user_id}) in {chat_title} (ID: {chat_id})")
+                    print(f"🚫 Unauthorized admin command attempt by @{username} (ID: {user_id}) in {chat_title} (ID: {chat_id}): {text.split()[0]}")
                 return
             
             # Handle /start command
@@ -267,30 +291,61 @@ class TelegramBotManager:
             
             # Handle /help command
             elif text.startswith('/help'):
-                help_msg = (
-                    f"🐋 <b>WhaleWallet Bot Commands</b>\n\n"
-                    f"<b>Available Commands:</b>\n"
-                    f"/start - Subscribe to notifications\n"
-                    f"/stop - Unsubscribe from notifications\n"
-                    f"/status - Check your subscription status\n"
-                    f"/wallets - View monitored wallet addresses\n"
-                    f"/info - View tracker system information\n"
-                    f"/help - Show this help message\n\n"
-                    f"<b>Notification Types:</b>\n"
-                    f"🚀 Position Opened\n"
-                    f"✅ Position Closed\n"
-                    f"🔄 Position Changed\n"
-                    f"📥 Deposits (ETH, BTC, Tokens)\n"
-                    f"📤 Withdrawals\n"
-                    f"💸 Balance Changes\n\n"
-                    f"<b>Features:</b>\n"
-                    f"• Real-time wallet monitoring\n"
-                    f"• Multi-wallet support\n"
-                    f"• Position tracking\n"
-                    f"• Smart alerts\n"
-                    f"• Multi-user support\n\n"
-                    f"<i>Questions? Open an issue on GitHub!</i>"
-                )
+                # Show different help based on chat type
+                if chat_type == 'private':
+                    help_msg = (
+                        f"🐋 <b>WhaleWallet Bot Commands</b>\n\n"
+                        f"<b>Available Commands:</b>\n"
+                        f"/start - Subscribe to notifications\n"
+                        f"/stop - Unsubscribe from notifications\n"
+                        f"/status - Check your subscription status\n"
+                        f"/analysis - Get latest wallet analysis\n"
+                        f"/wallets - View monitored wallet addresses\n"
+                        f"/info - View tracker system information\n"
+                        f"/help - Show this help message\n\n"
+                        f"<b>Notification Types:</b>\n"
+                        f"🚀 Position Opened\n"
+                        f"✅ Position Closed\n"
+                        f"🔄 Position Changed\n"
+                        f"📥 Deposits (ETH, BTC, Tokens)\n"
+                        f"📤 Withdrawals\n"
+                        f"💸 Balance Changes\n\n"
+                        f"<b>Features:</b>\n"
+                        f"• Real-time wallet monitoring\n"
+                        f"• Multi-wallet support\n"
+                        f"• Position tracking\n"
+                        f"• Smart alerts\n"
+                        f"• Multi-user support\n\n"
+                        f"<i>Questions? Open an issue on GitHub!</i>"
+                    )
+                else:
+                    # Group chat - show permission info
+                    help_msg = (
+                        f"🐋 <b>WhaleWallet Bot Commands</b>\n\n"
+                        f"<b>🔓 Public Commands (Everyone):</b>\n"
+                        f"/analysis - Get latest wallet analysis\n"
+                        f"/status - Check subscription status\n"
+                        f"/wallets - View monitored addresses\n"
+                        f"/info - Tracker system information\n"
+                        f"/help - Show this help message\n\n"
+                        f"<b>🔒 Admin Only Commands:</b>\n"
+                        f"/start - Subscribe group to notifications\n"
+                        f"/stop - Unsubscribe group from notifications\n\n"
+                        f"<b>Notification Types:</b>\n"
+                        f"🚀 Position Opened\n"
+                        f"✅ Position Closed\n"
+                        f"🔄 Position Changed\n"
+                        f"📥 Deposits (ETH, BTC, Tokens)\n"
+                        f"📤 Withdrawals\n"
+                        f"💸 Balance Changes\n\n"
+                        f"<b>Features:</b>\n"
+                        f"• Real-time wallet monitoring\n"
+                        f"• Multi-wallet support\n"
+                        f"• Position tracking\n"
+                        f"• Smart alerts\n"
+                        f"• Group notifications\n\n"
+                        f"<i>Admin permissions protect group subscriptions!</i>"
+                    )
                 self.send_message(chat_id, help_msg)
             
             # Handle /info command
@@ -346,6 +401,34 @@ class TelegramBotManager:
                     self.send_message(chat_id, wallets_msg)
                 except Exception as e:
                     self.send_message(chat_id, f"⚠️ Error getting wallet info: {str(e)}")
+            
+            # Handle /analysis command
+            elif text.startswith('/analysis'):
+                # Check if user is subscribed
+                if chat_id not in self.subscribers:
+                    self.send_message(
+                        chat_id,
+                        "⚠️ You need to subscribe first! Send /start to subscribe."
+                    )
+                    return
+                
+                # Send loading message
+                self.send_message(chat_id, "📊 <b>Generating wallet analysis...</b>\n\n<i>Please wait...</i>")
+                
+                # Call analysis callback if available
+                if self.on_analysis_request:
+                    try:
+                        self.on_analysis_request(chat_id)
+                    except Exception as e:
+                        self.send_message(
+                            chat_id,
+                            f"⚠️ <b>Error generating analysis</b>\n\n{str(e)}"
+                        )
+                else:
+                    self.send_message(
+                        chat_id,
+                        "⚠️ Analysis feature is not available at the moment."
+                    )
 
             
         except Exception as e:

@@ -48,6 +48,10 @@ class CryptoWalletMonitor:
             print(f"🤖 Telegram Bot: Active ({subscriber_count} subscribers)")
             print(f"💡 Users can send /start to subscribe to notifications")
             
+            # Set bot callbacks
+            self.notifier.bot_manager.on_new_subscriber = self.send_analysis_to_new_subscriber
+            self.notifier.bot_manager.on_analysis_request = self.send_analysis_to_new_subscriber
+            
             # Set callback for new subscribers
             self.notifier.bot_manager.on_new_subscriber = self.send_analysis_to_new_subscriber
         else:
