@@ -25,8 +25,8 @@ services:
       - TZ=Europe/Istanbul
     
     volumes:
-      # Mount logs directory to persist logs (includes transactions.log)
-      - ./logs:/app/logs
+      # Use named volume for logs to avoid permission issues
+      - logs_data:/app/logs
       # Use named volume for subscribers to avoid file/directory conflicts
       - subscribers_data:/app/data
     
@@ -42,5 +42,7 @@ services:
 
 # Named volumes for persistent data
 volumes:
+  logs_data:
+    driver: local
   subscribers_data:
     driver: local

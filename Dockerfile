@@ -25,12 +25,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create directories for logs and data
+# Create directories for logs and data with proper permissions
 RUN mkdir -p /app/logs /app/data
 
 # Run as non-root user for security
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app/logs /app/data
 USER appuser
 
 # Run the application
