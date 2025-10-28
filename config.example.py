@@ -11,14 +11,6 @@ HYPERLIQUID_API_URL = "https://api.hyperliquid.xyz/info"
 
 # Notification settings
 NOTIFICATION_SETTINGS = {
-    "email": {
-        "enabled": False,
-        "smtp_server": "smtp.gmail.com",
-        "smtp_port": 587,
-        "sender_email": "your_email@gmail.com",
-        "sender_password": "your_password",
-        "recipient_email": "recipient@example.com"
-    },
     "telegram": {
         "enabled": False,
         "bot_token": "YOUR_BOT_TOKEN",

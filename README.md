@@ -29,10 +29,12 @@ A Python application that monitors Ethereum wallet and Hyperliquid positions for
 ## Configuration
 
 1. Create a Telegram bot:
+
    - Contact [@BotFather](https://t.me/botfather) on Telegram
    - Create a new bot and get the bot token
 
 2. Get your Chat ID:
+
    - Send a message to your bot
    - Run `python3 get_chat_id.py` to get your chat ID
 
@@ -49,16 +51,19 @@ A Python application that monitors Ethereum wallet and Hyperliquid positions for
 ## Usage
 
 ### Manual Check
+
 ```bash
 python3 main.py --check
 ```
 
 ### Continuous Monitoring
+
 ```bash
 python3 main.py
 ```
 
 The application will check for changes every 10 minutes and send notifications for:
+
 - 🚀 Position Opened
 - ✅ Position Closed
 - 🔄 Position Changed
@@ -68,8 +73,38 @@ The application will check for changes every 10 minutes and send notifications f
 ## Requirements
 
 - Python 3.6+
-- requests
-- schedule
+- requests>=2.25.1
+- schedule>=1.1.0
+- web3>=5.28.0
+- python-dotenv>=0.19.0
+
+## Project Structure
+
+```
+WhaleWallet/
+├── main.py                    # Main application entry point
+├── wallet_tracker.py          # Wallet and position tracking logic
+├── notification_system.py     # Telegram & console notifications
+├── config.py                  # Configuration file
+├── config.example.py          # Example configuration template
+├── utils.py                   # Utility functions
+├── requirements.txt           # Python dependencies
+├── .env.example               # Environment variables template
+├── get_chat_id.py             # Helper to get Telegram chat ID
+├── telegram_helper.py         # Telegram utility functions
+├── telegram_setup.py          # Interactive Telegram setup
+├── test_notification.py       # Test notification system
+├── debug_positions.py         # Debug position tracking
+└── README.md                  # This file
+```
+
+## Helper Scripts
+
+- **get_chat_id.py**: Simple script to retrieve your Telegram chat ID
+- **telegram_helper.py**: Advanced Telegram bot utilities
+- **telegram_setup.py**: Interactive setup for Telegram bot configuration
+- **test_notification.py**: Test your notification setup
+- **debug_positions.py**: Debug and view current positions
 
 ## Security Notes
 

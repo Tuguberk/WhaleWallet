@@ -64,8 +64,12 @@ def main():
     print("🤖 Getting Telegram Chat ID")
     print("="*50)
     
-    # Bot token from config
-    bot_token = "8309783593:AAFkOWkfJlmNJowcx5rMGxq4kBG5fKlqPww"
+    # Get bot token from user input (SECURITY: Never hardcode tokens!)
+    bot_token = input("\nTelegram Bot Token'ınızı girin (BotFather'dan aldığınız): ").strip()
+    
+    if not bot_token:
+        print("❌ Bot token boş olamaz!")
+        return
     
     # Get chat ID
     chat_id = get_chat_id(bot_token)
@@ -76,12 +80,10 @@ def main():
         test_telegram_notification(bot_token, chat_id)
         
         print("\n✅ Setup complete!")
-        print(f"📝 Update your config.py with:")
-        print(f'"telegram": {{')
-        print(f'    "enabled": true,')
-        print(f'    "bot_token": "{bot_token}",')
-        print(f'    "chat_id": "{chat_id}"')
-        print(f'}}')
+        print(f"📝 Add these to your .env file:")
+        print(f'TELEGRAM_BOT_TOKEN={bot_token}')
+        print(f'TELEGRAM_CHAT_ID={chat_id}')
+        print(f'\n⚠️  IMPORTANT: Never share your bot token with anyone!')
 
 if __name__ == "__main__":
     main()

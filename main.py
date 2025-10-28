@@ -29,8 +29,7 @@ class CryptoWalletMonitor:
         
         print(f"🚀 Starting wallet tracker for: {self.wallet_address}")
         print(f"⏰ Check interval: {self.check_interval} seconds")
-        print(f"📧 Email notifications: {'Enabled' if self.config['notification_settings']['email']['enabled'] else 'Disabled'}")
-        print(f"📱 Telegram notifications: {'Enabled' if self.config['notification_settings']['telegram']['enabled'] else 'Disabled'}")
+        print(f" Telegram notifications: {'Enabled' if self.config['notification_settings']['telegram']['enabled'] else 'Disabled'}")
         
     def check_wallet_changes(self):
         """Main check function for wallet changes"""

@@ -1,15 +1,14 @@
-import smtplib
 import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Dict, Optional, List
+import time
 
 class NotificationSystem:
     def __init__(self, config: Dict):
-        self.email_config = config.get("email", {})
         self.telegram_config = config.get("telegram", {})
         self.console_enabled = config.get("console", {}).get("enabled", True)
+        self._last_telegram_call = 0
+        self._min_telegram_interval = 0.034  # ~30 messages per second limit
     
     def send_notification(self, message: str, title: str = "Wallet Update") -> bool:
         """Send notification through all enabled channels"""
@@ -18,11 +17,6 @@ class NotificationSystem:
         # Send to console
         if self.console_enabled:
             self._send_to_console(message, title)
-        
-        # Send email
-        if self.email_config.get("enabled", False):
-            email_success = self._send_email(message, title)
-            success = success and email_success
         
         # Send Telegram
         if self.telegram_config.get("enabled", False):
@@ -88,31 +82,13 @@ class NotificationSystem:
         print('\n'.join(formatted_lines))
         print(f"{colors['cyan']}{'='*60}{colors['end']}\n")
     
-    def _send_email(self, message: str, title: str) -> bool:
-        """Send email notification"""
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = self.email_config["sender_email"]
-            msg['To'] = self.email_config["recipient_email"]
-            msg['Subject'] = title
-            
-            msg.attach(MIMEText(message, 'plain'))
-            
-            server = smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"])
-            server.starttls()
-            server.login(self.email_config["sender_email"], self.email_config["sender_password"])
-            text = msg.as_string()
-            server.sendmail(self.email_config["sender_email"], self.email_config["recipient_email"], text)
-            server.quit()
-            
-            print("Email notification sent successfully")
-            return True
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-            return False
-    
     def _send_telegram(self, message: str) -> bool:
-        """Send Telegram notification"""
+        """Send Telegram notification with rate limiting and error handling"""
+        # Rate limiting
+        elapsed = time.time() - self._last_telegram_call
+        if elapsed < self._min_telegram_interval:
+            time.sleep(self._min_telegram_interval - elapsed)
+        
         try:
             url = f"https://api.telegram.org/bot{self.telegram_config['bot_token']}/sendMessage"
             payload = {
@@ -120,15 +96,34 @@ class NotificationSystem:
                 "text": message,
                 "parse_mode": "HTML"
             }
-            response = requests.post(url, json=payload)
+            
+            # Add timeout and SSL verification
+            response = requests.post(url, json=payload, timeout=10, verify=True)
+            self._last_telegram_call = time.time()
+            
             if response.status_code == 200:
                 print("Telegram notification sent successfully")
                 return True
+            elif response.status_code == 429:
+                # Rate limit exceeded
+                print(f"Telegram rate limit exceeded. Waiting...")
+                retry_after = int(response.headers.get('Retry-After', 60))
+                time.sleep(retry_after)
+                return self._send_telegram(message)  # Retry once
             else:
-                print(f"Telegram API error: {response.text}")
+                print(f"Telegram API error ({response.status_code}): {response.text}")
                 return False
+        except requests.exceptions.Timeout:
+            print("Telegram notification timeout - request took too long")
+            return False
+        except requests.exceptions.ConnectionError:
+            print("Telegram connection error - check your internet connection")
+            return False
+        except requests.exceptions.RequestException as e:
+            print(f"Telegram request error: {type(e).__name__}")
+            return False
         except Exception as e:
-            print(f"Failed to send Telegram notification: {e}")
+            print(f"Unexpected error sending Telegram notification: {type(e).__name__}")
             return False
     
     def format_balance_change(self, old_balance: float, new_balance: float, change: float) -> str:

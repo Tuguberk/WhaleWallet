@@ -65,10 +65,15 @@ def check_updates(bot_token):
         return None
 
 def main():
-    bot_token = "8309783593:AAFkOWkfJlmNJowcx5rMGxq4kBG5fKlqPww"
-    
     print("🤖 Telegram Bot Helper")
     print("="*50)
+    
+    # SECURITY: Get token from user input instead of hardcoding
+    bot_token = input("\nTelegram Bot Token'ınızı girin (BotFather'dan aldığınız): ").strip()
+    
+    if not bot_token:
+        print("❌ Bot token boş olamaz!")
+        return
     
     # Get bot info
     print("Getting bot information...")
@@ -84,12 +89,10 @@ def main():
         
         if chat_id:
             print(f"\n✅ SUCCESS! Your Chat ID: {chat_id}")
-            print("\nUpdate your config.py:")
-            print('"telegram": {')
-            print('    "enabled": true,')
-            print(f'    "bot_token": "{bot_token}",')
-            print(f'    "chat_id": "{chat_id}"')
-            print('}')
+            print("\n📝 Add these to your .env file:")
+            print(f'TELEGRAM_BOT_TOKEN={bot_token}')
+            print(f'TELEGRAM_CHAT_ID={chat_id}')
+            print(f'\n⚠️  IMPORTANT: Never share your bot token with anyone!')
             
             # Test notification
             test_notification(bot_token, chat_id)
