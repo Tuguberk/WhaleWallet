@@ -15,9 +15,14 @@ def load_config(config_path: str = "config.py") -> dict:
         "position_change_threshold": config.POSITION_CHANGE_THRESHOLD
     }
 
-def save_transaction_log(tx_data: dict, log_file: str = "transactions.log"):
+def save_transaction_log(tx_data: dict, log_file: str = "/app/logs/transactions.log"):
     """Save transaction data to log file"""
     try:
+        # Ensure directory exists
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        
         with open(log_file, "a") as f:
             f.write(f"{datetime.now().isoformat()}: {json.dumps(tx_data)}\n")
     except Exception as e:

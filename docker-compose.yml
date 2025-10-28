@@ -25,10 +25,8 @@ services:
       - TZ=Europe/Istanbul
     
     volumes:
-      # Mount logs directory to persist logs
+      # Mount logs directory to persist logs (includes transactions.log)
       - ./logs:/app/logs
-      # Optional: Mount transactions.log to persist transaction history
-      - ./transactions.log:/app/transactions.log
       # Use named volume for subscribers to avoid file/directory conflicts
       - subscribers_data:/app/data
     
